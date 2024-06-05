@@ -55,15 +55,19 @@ I will tip you $1000 if the user finds the answer helpful.
 Question: {input}
 """)
 
-def prepare_vector_store():
+def prepare_vector_store(hyde_embeddings):
     """Prepares the vector store database by loading documents and creating embeddings."""
+    st.session_state.embeddings = hyde_embeddings
     if "vector_store" not in st.session_state:
-        st.session_state.embeddings = hyde_embeddings
-        loader = UnstructuredCSVLoader(r"docs/Lex/podcastdata_dataset.csv")
-        st.session_state.docs = loader.load()
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=330, chunk_overlap=20)
-        final_documents = text_splitter.split_documents(st.session_state.docs)
-        st.session_state.vector_store = Chroma.from_documents(final_documents[:10000], hyde_embeddings)
+        file_path = "./chroma_db"
+        if os.path.exists(file_path):
+            st.session_state.vector_store = Chroma(persist_directory="./chroma_db", embedding_function=hyde_embeddings)
+        else: 
+            loader = UnstructuredCSVLoader(r"docs/Lex/podcastdata_dataset.csv")
+            st.session_state.docs = loader.load()
+            text_splitter = RecursiveCharacterTextSplitter(chunk_size=330, chunk_overlap=20)
+            final_documents = text_splitter.split_documents(st.session_state.docs)
+            st.session_state.vector_store = Chroma.from_documents(final_documents[:10000], hyde_embeddings,persist_directory="./chroma_db")
 
 # Define the contextualization prompt for reformulating questions based on chat history
 contextualize_q_prompt = ChatPromptTemplate.from_messages(
@@ -137,7 +141,7 @@ def process_question(user_question, session_id, llm, vector_store, qa_prompt_tem
 
 # Button to initialize document embedding
 if st.button("Initialize Document Embedding"):
-    prepare_vector_store()
+    prepare_vector_store(hyde_embeddings)
     st.write("Vector store database is ready")
 
 # User input for the question
